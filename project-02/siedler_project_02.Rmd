@@ -1,0 +1,351 @@
+---
+title: "Mini-Project 02"
+output: 
+  html_document:
+    keep_md: true
+    toc: true
+    toc_float: true
+---
+
+# Data Visualization Project 02
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(plotly)
+library(lubridate)
+library(sf)
+library(countrycode)
+library(broom)
+```
+
+## Data Loading and Preparation
+
+The dataset used is the Boston Marathon 2017 results. It contains information on all finishers including their name, age, gender, origin (city, state, country), split times at every 5K mark, pace, and official finishing time.
+
+```{r load-data}
+df <- read_csv("../data/marathon_results_2017.csv")
+
+time_to_minutes <- function(x) {
+  ifelse(x == "-" | is.na(x), NA,
+    period_to_seconds(hms(x)) / 60
+  )
+}
+
+df <- df %>%
+  mutate(
+    Official_Time_min = time_to_minutes(`Official Time`),
+    Age = as.numeric(Age),
+    Pace_min = time_to_minutes(Pace)
+  )
+```
+
+```{r glimpse-data}
+glimpse(df)
+```
+
+## Summary of the Data
+
+```{r summary}
+df %>%
+  summarise(
+    Total_Runners = n(),
+    Countries = n_distinct(Country),
+    Median_Age = median(Age, na.rm = TRUE),
+    Median_Time = median(Official_Time_min, na.rm = TRUE),
+    Female_Pct = mean(`M/F` == "F", na.rm = TRUE) * 100
+  )
+```
+
+## Visualization 1 (Interactive): Age and Finish Time Distributions
+
+An interactive look at the distributions of runner ages and official finishing times, created using `plotly`. Hovering over each bar reveals the exact count, bin range, and percentage of runners, which a static histogram cannot show without cluttering the plot with labels.
+
+```{r interactive-histogram-age, fig.alt="Interactive histogram of runner age distribution in the 2017 Boston Marathon. The distribution peaks around age 40. Hover over bars to see exact count and percentage."}
+compute_hist_df <- function(x, bins = 30) {
+  h <- hist(x, breaks = bins, plot = FALSE)
+  total <- length(x)
+  data.frame(
+    mids = h$mids,
+    count = h$counts,
+    pct = h$counts / total * 100,
+    bin_start = head(h$breaks, -1),
+    bin_end = tail(h$breaks, -1)
+  )
+}
+
+age_hist_df <- compute_hist_df(df$Age)
+
+ggplotly(
+  ggplot(age_hist_df, aes(
+    x = mids, y = count,
+    text = paste0(
+      "Count: ", count,
+      "\nRange: ", round(bin_start, 1), "\u2013", round(bin_end, 1),
+      "\nPercent: ", round(pct, 1), "%"
+    )
+  )) +
+    geom_col(
+      fill = "#0072B2", color = "white", alpha = 0.85,
+      width = diff(age_hist_df$bin_start)[1]
+    ) +
+    labs(title = "Age Distribution", x = "Age", y = "Count") +
+    theme_bw(),
+  tooltip = "text"
+)
+```
+
+```{r interactive-histogram-time, fig.alt="Interactive histogram of marathon finishing time distribution in the 2017 Boston Marathon. Most runners finish between 3.5 and 4.5 hours. Hover over bars to see exact count and percentage."}
+time_hist_df <- compute_hist_df(df$Official_Time_min)
+
+ggplotly(
+  ggplot(time_hist_df, aes(
+    x = mids, y = count,
+    text = paste0(
+      "Count: ", count,
+      "\nRange: ", round(bin_start, 1), "\u2013", round(bin_end, 1),
+      "\nPercent: ", round(pct, 1), "%"
+    )
+  )) +
+    geom_col(
+      fill = "#009E73", color = "white", alpha = 0.85,
+      width = diff(time_hist_df$bin_start)[1]
+    ) +
+    labs(title = "Finishing Time Distribution", x = "Time (minutes)", y = "Count") +
+    theme_bw(),
+  tooltip = "text"
+)
+```
+
+## Visualization 2: Average Finish Time by Country
+
+A choropleth map using **sf** showing average official finishing time by country. International runners tend to be faster on average than US-based runners — likely because only the most dedicated athletes travel internationally to compete. Countries with no participants are shown in white to distinguish them from the grey midpoint of the diverging scale.
+
+```{r spatial-choropleth, fig.alt="World choropleth map showing average Boston Marathon 2017 finishing time by country. Blue countries are faster-than-average, orange countries slower. The USA appears in a neutral grey tone near the global average. Most of Africa and parts of Asia have no participants and are shown in white."}
+country_iso_map <- c(
+  GER = "DEU", NED = "NLD", SUI = "CHE", POR = "PRT", CRC = "CRI",
+  DEN = "DNK", MAS = "MYS", PHI = "PHL", CHI = "CHL", SIN = "SGP",
+  RSA = "ZAF", SLO = "SVN", BER = "BMU", CAY = "CYM", GRE = "GRC",
+  CRO = "HRV", HON = "HND", ESA = "SLV", LAT = "LVA", BUL = "BGR",
+  ALG = "DZA", BAR = "BRB", INA = "IDN", GRN = "GRD", MGL = "MNG",
+  NGR = "NGA", TAN = "TZA", RUS = "RUS", TWN = "TWN", VIE = "VNM",
+  LTU = "LTU", PUR = "PRI", BAH = "BHS", GUA = "GTM", NCA = "NIC",
+  PAR = "PRY", URU = "URY", ISR = "ISR", KUW = "KWT", QAT = "QAT",
+  KSA = "SAU", SRI = "LKA", ZIM = "ZWE", UAE = "ARE", CZE = "CZE",
+  TRI = "TTO", TCA = "TCA", MLT = "MLT", SMR = "SMR", AND = "AND",
+  NOR = "NOR"
+)
+
+country_avg_time <- df %>%
+  group_by(Country) %>%
+  summarise(Avg_Time = mean(Official_Time_min, na.rm = TRUE), .groups = "drop") %>%
+  mutate(ISO3C = countrycode(Country, "iso3c", "iso3c", custom_match = country_iso_map))
+
+world_sf <- st_read("../data/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp", quiet = TRUE)
+
+world_sf <- world_sf %>%
+  left_join(country_avg_time, by = c("ADM0_A3" = "ISO3C"))
+
+overall_avg <- mean(df$Official_Time_min, na.rm = TRUE)
+
+ggplot(world_sf) +
+  geom_sf(aes(fill = Avg_Time), color = "grey70", linewidth = 0.2) +
+  scale_fill_gradient2(
+    low = "#0072B2",
+    mid = "#f0f0f0",
+    high = "#D55E00",
+    midpoint = overall_avg,
+    na.value = "#ffffff",
+    name = "Avg Time (min)"
+  ) +
+  labs(
+    title = "Average Marathon Finish Time by Country",
+    subtitle = "Blue = faster than average, orange = slower. White = no participants."
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title = element_blank(), axis.text = element_blank(),
+    panel.grid = element_blank(), legend.position = "bottom"
+  )
+```
+
+## Visualization 3: Histogram of Marathon Finish Times
+
+A histogram of official finishing times in hours. The x-axis is limited to 6.5 hours (only 0.1% of finishers go beyond this). Instead of the smooth bell curve you would expect from a normal distribution, the chart looks like a mountain range with dramatic spikes just before round numbers like 3h and 4h — runners push hard to finish in 3:59:59 rather than 4:00:01. Sub-4 is the most targeted barrier.
+
+```{r finish-time-hist, fig.alt="Histogram of 2017 Boston Marathon finishing times in 1-minute bins. X-axis runs from 2 to 6.5 hours. The distribution shows a general bell shape with prominent spikes just before the 3-hour and 4-hour marks, reflecting runners' psychological goals to beat round-number barriers."}
+finish_targets <- c(3, 4)
+
+ggplot(df, aes(x = Official_Time_min / 60)) +
+  geom_histogram(binwidth = 1 / 60, fill = "#0072B2", color = "white", alpha = 0.85) +
+  geom_vline(xintercept = finish_targets, color = "#D55E00", alpha = 0.4, linewidth = 1) +
+  annotate("text",
+    x = 2.9, y = 350, label = "Sub-3h", angle = 90, vjust = 1.2,
+    size = 3.5, color = "#D55E00", fontface = "italic"
+  ) +
+  annotate("text",
+    x = 3.9, y = 350, label = "Sub-4h", angle = 90, vjust = 1.2,
+    size = 3.5, color = "#D55E00", fontface = "italic"
+  ) +
+  xlim(2, 6.5) +
+  labs(
+    title = "Distribution of Marathon Finish Times",
+    subtitle = "1-minute bins, x-axis truncated at 6.5h (99.9% of finishers)",
+    x = "Finish Time (hours)", y = "Number of Finishers"
+  ) +
+  theme_bw()
+```
+
+## Visualization 4: Average Time by Age and Gender
+
+Average official finishing time at each individual age (18 to 70), split by gender. We can see that the average time has its minimum in the early 20s to mid-30s. The older you get the slower you tend to be. Also you can clearly see the difference in performance between male and female runners. In the early 30s, male runners tend to be faster (by about 30min) than female runners. I think another interesting visualization would be the fastest finishing time by age group but on a bigger dataset. If I remember correctly, marathon is one of the disciplines, where most runners peak in their mid to late 30s. Colors follow the Okabe-Ito colorblind-safe palette.
+
+```{r agegroup-viz, fig.alt="Scatter plot with loess smooth curves showing median Boston Marathon finishing time by age (18-70), split by gender. Both curves show a U-shape with fastest times around ages 25-35. The female curve sits roughly 30 minutes above the male curve at age 33. Points are in colorblind-safe blue (male) and orange (female)."}
+df_medians <- df %>%
+  filter(Age >= 18, Age <= 70) %>%
+  group_by(Age, `M/F`) %>%
+  summarise(Median_Time = median(Official_Time_min, na.rm = TRUE), .groups = "drop")
+
+age_gap <- 33
+
+gap_at_30 <- df_medians %>%
+  filter(Age == age_gap) %>%
+  select(`M/F`, Median_Time) %>%
+  deframe()
+
+df_medians %>%
+  mutate(`M/F` = recode(`M/F`, M = "Male", F = "Female")) %>%
+  ggplot(aes(x = Age, y = Median_Time, color = `M/F`)) +
+  geom_point(size = 1.5) +
+  geom_smooth(se = FALSE, linewidth = 1, method = "loess") +
+  geom_segment(
+    aes(
+      x = age_gap, xend = age_gap,
+      y = gap_at_30["M"], yend = gap_at_30["F"]
+    ),
+    color = "#555555", linewidth = 0.6, linetype = "dashed"
+  ) +
+  annotate("text",
+    x = 30.5, y = mean(gap_at_30[c("M", "F")]),
+    label = paste0("~", round(gap_at_30["F"] - gap_at_30["M"]), " min gap"),
+    hjust = 0, size = 3.5, fontface = "italic", color = "#555555"
+  ) +
+  scale_x_continuous(breaks = seq(18, 70, 4)) +
+  scale_color_manual(values = c("Male" = "#0072B2", "Female" = "#D55E00")) +
+  labs(
+    title = "Median Finishing Time by Age and Gender",
+    subtitle = "Points = observed medians, curves = smooth fit through medians",
+    x = "Age", y = "Median Time (minutes)", color = "Gender"
+  ) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+## Visualization 5: Linear Model Coefficients
+
+A linear regression model (`Official_Time_min ~ Age + Gender`) quantifies the effect of age and gender on finish time. Being female adds approximately 28 minutes relative to male, and each additional year of age adds about 0.56 minutes (34 seconds). Confidence intervals are tight because the dataset has 26,000+ observations.
+
+```{r model-coef, fig.alt="Coefficient plot from a linear regression predicting Boston Marathon finish time. Two predictors are shown: Age (per year) with a positive effect of about 0.56 minutes, and Female vs Male with a positive effect of about 28 minutes. Horizontal bars represent 95% confidence intervals. A red dashed vertical line marks zero effect."}
+df <- df %>% mutate(Gender = relevel(factor(`M/F`), ref = "M"))
+marathon_model <- lm(Official_Time_min ~ Age + Gender, data = df)
+
+model_coefficients <- tidy(marathon_model, conf.int = TRUE) %>%
+  filter(term != "(Intercept)")
+
+ggplot(model_coefficients, aes(x = estimate, y = term)) +
+  geom_point(size = 3, color = "#009E73") +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2, color = "grey40") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "#D55E00") +
+  scale_y_discrete(labels = c("Age" = "Age (per year)", "GenderF" = "Female (vs Male)")) +
+  labs(
+    title = "Linear Model Coefficients: Predicting Finish Time",
+    subtitle = "Bars represent 95% Confidence Intervals. Reference: Male.",
+    x = "Effect on Finish Time (Minutes)",
+    y = "Predictor Variable"
+  ) +
+  theme_bw()
+```
+
+## Before / After Redesign
+
+The original Visualization 4 (Median Time by Age and Gender) used `#4682B4` (steel blue) for Male and `#e74c3c` (red) for Female. Red-green and red-blue color combinations are not distinguishable for people with the most common forms of colorblindness (deuteranopia, protanopia).
+
+**What was wrong:**
+
+- `#4682B4` and `#e74c3c` fail the red-green and blue-yellow colorblindness checks
+- No alt text or shape redundancy — color was the sole encoding for gender
+- Default `theme_minimal()` with no border
+
+**Before (reproduction of original):**
+
+```{r redesign-before, message=FALSE, warning=FALSE, fig.alt="Original version of the median finishing time by age and gender chart using steel blue for male and red for female, colors that are not distinguishable by colorblind viewers."}
+df_medians %>%
+  mutate(`M/F` = recode(`M/F`, M = "Male", F = "Female")) %>%
+  ggplot(aes(x = Age, y = Median_Time, color = `M/F`)) +
+  geom_point(size = 1.5) +
+  geom_smooth(se = FALSE, linewidth = 1, method = "loess") +
+  scale_x_continuous(breaks = seq(18, 70, 4)) +
+  scale_color_manual(values = c("Male" = "#4682B4", "Female" = "#e74c3c")) +
+  labs(
+    title = "Median Finishing Time by Age and Gender",
+    x = "Age", y = "Median Time (minutes)", color = "Gender"
+  ) +
+  theme_minimal()
+```
+
+**After (redesigned):**
+
+- Okabe-Ito palette (`#0072B2` blue / `#D55E00` orange) — safe for all major colorblindness types
+- `theme_bw()` for better contrast
+- Annotation directly on the chart reduces reliance on legend alone
+
+```{r redesign-after, message=FALSE, warning=FALSE, fig.alt="Redesigned version of the median finishing time by age and gender chart. Uses Okabe-Ito colorblind-safe palette: blue for male, orange for female. A dashed line annotates the gender gap at age 33. Layout uses theme_bw for improved contrast."}
+df_medians %>%
+  mutate(`M/F` = recode(`M/F`, M = "Male", F = "Female")) %>%
+  ggplot(aes(x = Age, y = Median_Time, color = `M/F`)) +
+  geom_point(size = 1.5) +
+  geom_smooth(se = FALSE, linewidth = 1, method = "loess") +
+  geom_segment(
+    aes(x = age_gap, xend = age_gap, y = gap_at_30["M"], yend = gap_at_30["F"]),
+    color = "#555555", linewidth = 0.6, linetype = "dashed"
+  ) +
+  annotate("text",
+    x = 30.5, y = mean(gap_at_30[c("M", "F")]),
+    label = paste0("~", round(gap_at_30["F"] - gap_at_30["M"]), " min gap"),
+    hjust = 0, size = 3.5, fontface = "italic", color = "#555555"
+  ) +
+  scale_x_continuous(breaks = seq(18, 70, 4)) +
+  scale_color_manual(values = c("Male" = "#0072B2", "Female" = "#D55E00")) +
+  labs(
+    title = "Median Finishing Time by Age and Gender",
+    subtitle = "Okabe-Ito colorblind-safe palette | Points = observed medians",
+    x = "Age", y = "Median Time (minutes)", color = "Gender"
+  ) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+## Report
+I myself are kinda interested in running and therefore I decided to pick this specific dataset. After some research I found that this dataset is from the Boston 2017 Marathon.
+
+### Original Plans and Data Preparation
+- I planned to visualize the participants per country on a map. but because the US was dominating the dataset, the map would not be very informative, with just one country (the US) being clearly visible and the rest of the world having very low visibility. I even tried to use a log scale for the color mapping, but it didn't improve the visualization significantly.
+- I also wanted to see if there is a difference in the pace of runners by country with "round" numbers. Because people in the US use miles for distance instead of kilometers I thought they would maybe try to run a "round" number pace, but because this is a marathon the participants focus more on a calculated target time rather than a specific pace.
+- one interesting idea would also be to animate the participans on a actual map of the race. Because we have the 5k, 10k, ... times we could interpolate the positions of the runners over time to see the runners moving on the map.
+- I had one issue in fitting a smooth line through the data points in the median time by age plot. The issue was, that I used the medians for this line instead of the raw data.
+
+### What the Plots Reveal
+
+The interactive histograms show that the age distribution is roughly normal-ish with a peak around 40. Most people run this thing in the 3.5–4.5 hour range, which is honestly pretty solid. The smooth bell curve you'd expect from a normal distribution doesn't exist here. The finish time histogram looks like a mountain range because of psychology; nobody wants to see 4:00:01 on their finish time, so you get these massive spikes right before round numbers like 3h and 4h. Sub-4 is basically the holy grail.
+
+The map using Natural Earth shapefiles shows average finish time by country. US runners are slower on average, which makes sense: International runners are usually the more dedicated ones who travel specifically for the race. Kenya and Ethiopia aren't super visible in this dataset because there just aren't that many of them in the 2017 Boston field, but when they show up, they're fast.
+
+The median time by age plot confirms what you'd expect: performance peaks in your 20s–30s, then it's a gradual decline. The gap between men and women is pretty consistent at around 30 minutes across all ages. The loess smooth through the medians shows the trend much cleaner.
+
+The linear model coefficients plot quantifies it: every additional year of age adds about 0.56 minutes to your finish time. Being female adds ~28 minutes compared to male. The confidence intervals are tight because we have 26K data points, so these estimates are pretty reliable. No intercept shown because that's just the baseline! It is the effect sizes are what matter.
+
+One thing I noticed: the histogram spikes at 3h and 4h are way more dramatic than at 3:30 or 4:30. People really care about getting under those even-hour barriers. A 3:59:59 is infinitely better than 4:00:01 psychologically, and the data backs that up hard.
+
+### Design Principles Applied
+
+`theme_bw()` is used throughout for consistent, high-contrast styling. Colors follow the Okabe-Ito palette (`#0072B2`, `#D55E00`, `#009E73`) which is safe for all major colorblindness types. The choropleth is a special case worth noting: Okabe-Ito colors are designed for discrete categories, but a continuous diverging scale requires extra care because intermediate tones blend together. Green (`#009E73`) and orange (`#D55E00`) can both shift toward brownish-olive under deuteranopia, making them hard to distinguish at intermediate values. Blue (`#0072B2`) and orange (`#D55E00`) remain distinguishable across all major colorblindness types even in a continuous gradient, so the choropleth uses blue as the low (faster) end rather than green. Annotations are placed directly on the canvas to reduce reliance on legends. The interactive histograms use tooltip-based information so the chart canvas stays uncluttered.
