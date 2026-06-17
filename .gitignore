@@ -44,3 +44,7 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Project-specific: ignore knitted HTML and figure intermediates
+**/*.html
+**/figure-html/

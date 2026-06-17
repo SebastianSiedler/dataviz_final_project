@@ -1,0 +1,64 @@
+---
+title: "Data Visualization and Reproducible Research"
+subtitle: "Final Project"
+author: "FirstName LastName - `flastname@domain.edu`"
+output: html_document
+---
+
+The goal of this assignment is to showcase some of the things you have learned in the course so far, and to put into practice the principles of data visualization and skills you have mastered.
+
+You are *encouraged* to work on your analysis using RStudio and the tools learned throughout this semester (GitHub, GitHub Desktop, etc.), however you also have the possibility to explore other tools that allow you to complete and/or complement this project.
+
+In this project you will be compiling the work you have produced during the course, and exploring an additional set of visualizations.
+
+Template is available in the GitHub repo: <https://github.com/aalhamadani/dataviz_final_project>
+
+# What Your Submission Must also Include
+
+[The following three requirements apply *on top of* everything below. Note in each project's `README.md` where you addressed them.]{style="color:purple;"}
+
+1.  **One interactive chart.** Each project should include at least one interactive visualization, built using the tools and techniques you have learned so far in this course. A static chart is a photograph; an interactive one is a window the reader can lean into (hover for values, toggle series, zoom in). Briefly explain in your commentary what the interactivity lets the reader do that a static image could not.\
+
+2.  **Accessibility.** Your figures must be readable by as many people as possible which means the content stays the same, but more people can understand and use it. Specifically: use **colorblind-safe palettes** (e.g., `viridis` / `scale_color_viridis_*()`, or `scale_color_brewer()` with a colorblind-safe set); provide **alt text** for each figure via the `fig.alt` chunk option (e.g., `` ```{r, fig.alt="..."} ``); and avoid encoding meaning by color *alone* where shape, linetype, or labels can also help.\
+
+3.  **Redesign a bad chart (before / after).** Take one ugly or misleading chart and fix it. The editing will help you more than drafting. Include the **original** (screenshot or quick reproduction) and your **improved version**, plus an explanation on what was wrong (truncated axis, rainbow palette, 3D pie, chartjunk, etc.) and how your redesign fixes it. (applied on all)
+
+# Instructions
+
+1.  **Fork and Clone** the repo.\
+    This will allow you to have an exact copy of the template under *your* GitHub account. Make sure to clone from YOUR repo, so that you can have a local copy in your computer, for which you will make changes, and be able to **push** changes (after **add**, and **commit**). You can use GitHub Desktop for this, the terminal, RStudio, or any other approach you feel comfortable with. If you make your fork a private one, make sure to add your instructor as a *collaborator* so that a review can be made (`@aalhamadani`)\
+    Fork this repository: <https://github.com/aalhamadani/dataviz_final_project>
+
+2.  You will see that there are **3 folders**:
+
+    -   `project_01/`: should contain a ***revised version*** of your mini-project 01 for this course. This can be a shorter version of what you submitted earlier this semester, a version with modifications based on feedback you received from me (not necessarily), or an extension to what you explored for that submission. Notice that the `README.md` file at the top level, has space for you to include a brief description of this mini-project and your favorite chart among the ones you created for that assignment. Use the RMarkdown file included in the template and placed in the `project_01/` folder for your revised short report (notice the YAML portion of this `.Rmd` that allows to create an extra `.md` file after you *knit* - this `.md` version renders correctly in GitHub! See for [example this](https://github.com/aalhamadani/dataviz_final_project/blob/main/project-03/lastname_project_03.md))
+
+    -   `project_02/`: should contain a ***revised version*** of your mini-project 02 for this course. This can be an improved version of what you submitted earlier this semester, a version with modifications based on feedback you received from me (not necessarily), or an extension to what you explored in that mini-project. Notice that the `README.md` file at the top level, has space for you to include a brief description of this mini-project and your favorite data visualization among the ones you created for that assignment. Use the RMarkdown file included in the template and placed in the `project_02/` folder for your revised report (notice the YAML portion of this `.Rmd` that allows to create an extra `.md` file after you *knit* - this `.md` version renders correctly in GitHub! See for [example this](https://github.com/aalhamadani/dataviz_final_project/blob/main/project-03/lastname_project_03.md))
+
+    -   `project_03/`: should contain your attempt at reproducing different charts as explained in the subfolder, **plus the *three* tasks** (see "What your submission must also include" above). Check the `lastname_project_03.Rmd` file for details.
+
+3.  Make sure you knit all the files, generate `.html` and `.md` versions in each folder, and update the README file at the top level with relevant information. The `README.md` in file is a plain Markdown file with an *executive summary* of your projects, including a motivation, description of the data that was used, and any comments for future directions. See sample `README.md` file that includes figures and other Markdown examples.
+
+4.  Submit in Canvas a link to your final GitHub repo with all the updated materials, *and* a `.zip` file from your repo.
+
+Multiple aspects of your project will be considered when reviewing your submission, including:
+
+-   *Reproducibility*: Is the code correct and are results fully reproducible?
+
+-   *Quality of plots*: Aesthetics and customization
+
+-   *Variety*: Are different style of plots explored?
+
+-   *Interactivity*: Is there a working interactive chart with a clear purpose?
+
+-   *Accessibility*: Colorblind-safe palettes and alt text on figures?
+
+-   *Redesign*: Is the before/after meaningful, with a clear explanation of the fix?
+
+-   *Folder structure*: Do the materials followed requested structure?
+
+-   *Formatting*: Is the project properly structured in sections and using markdown best design principles?
+
+-   *Storyteling*: Is there a clear justification and/or commentary on the results
+
+> Hope you learned many new and useful things this semester. I wish you well in your future endeavours.
