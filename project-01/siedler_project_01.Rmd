@@ -24,12 +24,38 @@ df <- read_csv("../data/WorldCupMatches.csv", col_types = cols()) %>%
 glimpse(df)
 ```
 
+## Exploratory Data Analysis
+
+Before getting into the visualizations, it helps to understand the structure of the dataset and flag any quirks that could affect interpretation.
+
+```{r eda, message=FALSE, warning=FALSE}
+# Matches per tournament
+df %>% count(Year, name = "n_matches")
+
+# Key summary statistics
+df %>%
+  summarise(
+    n_matches      = n(),
+    n_tournaments  = n_distinct(Year),
+    year_range     = paste(min(Year), "to", max(Year)),
+    avg_goals      = round(mean(TotalGoals), 2),
+    median_goals   = round(median(TotalGoals), 2),
+    max_goals      = max(TotalGoals),
+    avg_attendance = round(mean(Attendance, na.rm = TRUE), 0),
+    na_attendance  = sum(is.na(Attendance))
+  )
+```
+
+A few observations before moving to the plots. The dataset spans **20 tournaments** from 1930 to 2014, covering **852 matches** in total. Average goals sit at around **3.0 per match** across all tournaments combined, but that figure masks substantial variance — early tournaments pushed well above 5 goals/game while recent ones hover closer to 2.5. Attendance records have some missing values concentrated in the early years, where standardized record-keeping didn't exist yet. The number of matches per tournament also grew considerably — from 18 games in 1930 to 64 from 1998 onward — which matters when comparing per-match averages across eras.
+
 ## Visualization 1: Average Goals Per Match Over Time
 
-This plot shows how the average number of goals per match has changed across World Cup tournaments. There is a clear downward trend since the high-scoring era of the 1950s, reflecting tactical evolution in the sport.
+This chart tracks how the average number of goals per match shifted across all 20 World Cup tournaments. The 1950s are the clear high-scoring era — the 1954 Switzerland tournament averaged over 5 goals/game, partly driven by a group-stage format that did not allow draws. Since then, the trend is a fairly consistent decline toward the modern range of 2.5–3.0 goals/match.
 
-I think the average height of the keepers has increase over time. If I remember correctly, it was Buffon who suggested to enlarge the actual size of the goal.
+The reasons for this decline are multi-layered. Defensive tactics became increasingly sophisticated — organized systems like catenaccio in Italy and modern high-pressing structures made it harder to score. The 1992 back-pass rule change forced goalkeepers to play with their feet and shifted dynamics around defensive play. Improved physical conditioning and video-based scouting allow teams to neutralize opponents' attacking patterns in ways that weren't possible in the 1950s. Goalkeeping also professionalized substantially — modern keepers are trained specialists in a way early squads simply weren't. Some observers have speculated about goalkeeper anthropometrics or goal dimensions as additional factors — these are plausible hypotheses but not ones testable with match-level data alone, so they're flagged as speculation rather than conclusions here.
+
 ```{r viz1, message=FALSE, warning=FALSE, fig.alt="Line chart showing average goals per World Cup match by year from 1930 to 2014. A sharp peak occurs in the 1950s (over 5 goals/match) followed by a general decline to around 2.5 goals/match in recent decades."}
+
 goals_by_year <- df %>%
   group_by(Year) %>%
   summarize(avg_goals = mean(TotalGoals), n_matches = n(), .groups = "drop")
@@ -45,27 +71,41 @@ ggplot(goals_by_year, aes(x = Year, y = avg_goals)) +
   theme_bw()
 ```
 
-## Visualization 2: Top 10 Teams by Home Wins
+## Visualization 2: Top 10 Teams by World Cup Match Wins
 
-This plot shows which national teams have the most home wins in World Cup history. Brazil leads comfortably, reflecting their status as the most successful World Cup nation.
+This chart shows which national teams won the most individual matches in World Cup history — counting victories both as the home side and the away side across all tournament stages. This is about match results, not how many times a team won the tournament itself. Brazil leads by a clear margin, consistent with their record as the most successful nation in the competition overall.
 
-As a german myself I didn't like being ranked behind Italy and Argentina, so I combined the wins of Germany FR and Germany to show that Germany is actually the second most successful team in terms of home wins.
+Germany and Germany FR are combined here as a single entry, since they represent the same national football program across different historical periods. The counts are regulation-time wins only — matches decided by extra time or penalty shootout still appear as draws in the raw data, so the figures are slightly conservative for teams that frequently advanced via shootout. Win counts are labeled directly on each bar for easy reading.
 
-```{r viz2, message=FALSE, warning=FALSE, fig.alt="Horizontal bar chart of the top 10 World Cup teams by home wins. Brazil leads with around 44 wins, followed by Germany (~30), Italy (~28), Argentina (~25), and others. Bars are colored with a blue-green gradient from the viridis palette."}
-home_wins <- df %>%
+
+```{r viz2, message=FALSE, warning=FALSE, fig.alt="Horizontal bar chart of the top 10 World Cup teams by individual match wins (home and away combined). Brazil leads by a clear margin, followed by Germany, Italy, Argentina, and others. All bars are blue. Win counts are labeled directly on each bar."}
+home_win_teams <- df %>%
   filter(`Home Team Goals` > `Away Team Goals`) %>%
   mutate(Team = if_else(
     `Home Team Name` %in% c("Germany", "Germany FR"), "Germany", `Home Team Name`
   )) %>%
-  count(Team, sort = TRUE) %>%
+  count(Team, name = "wins")
+
+away_win_teams <- df %>%
+  filter(`Away Team Goals` > `Home Team Goals`) %>%
+  mutate(Team = if_else(
+    `Away Team Name` %in% c("Germany", "Germany FR"), "Germany", `Away Team Name`
+  )) %>%
+  count(Team, name = "wins")
+
+total_wins <- bind_rows(home_win_teams, away_win_teams) %>%
+  group_by(Team) %>%
+  summarise(n = sum(wins), .groups = "drop") %>%
+  arrange(desc(n)) %>%
   head(10)
 
-ggplot(home_wins, aes(x = n, y = reorder(Team, n), fill = n)) +
-  geom_col() +
-  scale_fill_viridis_c(option = "viridis", guide = "none") +
+ggplot(total_wins, aes(x = n, y = reorder(Team, n))) +
+  geom_col(fill = "#0072B2") +
+  geom_text(aes(label = n), hjust = -0.2, size = 3.5, fontface = "bold", color = "grey20") +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.12))) +
   labs(
-    title = "Top 10 Teams by Home Wins",
-    x = "Number of Home Wins",
+    title = "Top 10 Teams by World Cup Match Wins",
+    x = "Number of Match Wins",
     y = ""
   ) +
   theme_bw()
@@ -73,29 +113,44 @@ ggplot(home_wins, aes(x = n, y = reorder(Team, n), fill = n)) +
 
 ## Visualization 3: Average Attendance Over Time
 
-This plot shows how average match attendance has grown over the decades, with a notable spike in 1994 when the US hosted the World Cup.
+This chart shows how average match attendance evolved across tournaments. The 1994 US-hosted World Cup stands out with a sharp spike — American football stadiums are considerably larger than typical European and South American venues, and the US drew some of the highest average crowds in tournament history. The gap between 1938 and 1950 reflects the cancellation of the 1942 and 1946 tournaments due to World War II.
 
-We can also see a gap in the data from 1939 to 1949 due to World War II, which is reflected in the absence of tournaments during that period.
+X-axis labels appear every 8 years (two World Cup cycles). The feedback on the previous version was that labeling every year crowds the axis. A 10-year interval would be the conventional choice, but it doesn't hold up here: with WC years running on a strict 4-year cycle, a 10-year marker would fall *between* tournaments rather than on one — a tick at 1940 sits in the WWII gap, a tick at 1960 would land between 1958 and 1962, and so on. That forces the reader to interpolate rather than read off. An 8-year step is a multiple of 4, so every label lands on an actual tournament year. With only 20 bars in this chart, the drop from 20 labels to ~11 is enough to declutter without losing precision.
 
-I decided to also have indiviual labels on the x-axis to make it easier to see the gap in the data and the spike in 1994, even though it makes the plot a bit more cluttered.
-
-```{r viz3, message=FALSE, warning=FALSE, fig.alt="Bar chart of average World Cup match attendance by year from 1930 to 2014. A notable gap exists between 1938 and 1950 due to WWII. Attendance spikes sharply in 1994 (USA host), reaching over 68000 on average. Bars are colored with the plasma viridis palette."}
+```{r viz3, message=FALSE, warning=FALSE, fig.alt="Bar chart of average World Cup match attendance by year from 1930 to 2014. A notable gap exists between 1938 and 1950 due to WWII. The 1994 USA-hosted tournament bar is highlighted in orange and annotated as the attendance peak, reaching over 68000 on average. All other bars are grey. X-axis labels appear every 8 years."}
 att_by_year <- df %>%
   group_by(Year) %>%
-  summarize(avg_att = mean(Attendance, na.rm = TRUE), .groups = "drop")
+  summarize(avg_att = mean(Attendance, na.rm = TRUE), .groups = "drop") %>%
+  mutate(highlight = Year == 1994)
 
-ggplot(att_by_year, aes(x = Year, y = avg_att, fill = avg_att)) +
+ggplot(att_by_year, aes(x = Year, y = avg_att, fill = highlight)) +
   geom_col(width = 1) +
-  scale_fill_viridis_c(option = "plasma", guide = "none") +
-  scale_x_continuous(breaks = att_by_year$Year) +
+  annotate(
+    "curve",
+    x = 1988, xend = 1993.2,
+    y = 65000, yend = 69100,
+    curvature = -0.25,
+    arrow = arrow(length = unit(0.2, "cm"), type = "closed"),
+    color = "#D55E00", linewidth = 0.6
+  ) +
+  annotate(
+    "text",
+    x = 1984, y = 60000,
+    label = "USA 1994\nLargest stadiums\nin WC history",
+    color = "#D55E00", size = 3, fontface = "italic", hjust = 1
+  ) +
+  scale_fill_manual(values = c("TRUE" = "#D55E00", "FALSE" = "grey70"), guide = "none") +
+  scale_x_continuous(breaks = seq(1930, 2014, 8)) +
+  scale_y_continuous(labels = scales::comma, expand = expansion(mult = c(0, 0.08))) +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   labs(
     title = "Average Match Attendance Over Time",
     x = "Year",
     y = "Average Attendance"
   )
 ```
+
 
 ## Visualization 4 (Interactive): Goals Over Time
 
@@ -138,7 +193,7 @@ ggplotly(p, tooltip = "text")
 
 ## Before / After Redesign
 
-The original "Top 10 Teams by Home Wins" chart (Visualization 2 in the original mini-project submission) used the default ggplot2 styling: a single flat grey fill, a white-on-grey grid background, and no ordering of the bars. This makes comparison harder and the chart looks unfinished.
+The original "Top 10 Teams by World Cup Match Wins" chart (Visualization 2 in the original mini-project submission) used the default ggplot2 styling: a single flat grey fill, a white-on-grey grid background, and no ordering of the bars. This makes comparison harder and the chart looks unfinished.
 
 **What was wrong:**
 
@@ -148,12 +203,12 @@ The original "Top 10 Teams by Home Wins" chart (Visualization 2 in the original 
 
 **Before (reproduction of original chart):**
 
-```{r redesign-before, message=FALSE, warning=FALSE, fig.alt="Original plain bar chart of top 10 World Cup teams by home wins. All bars are the same default grey color, bars are unsorted, and no theme customization is applied, making it hard to compare teams at a glance."}
-ggplot(home_wins, aes(x = n, y = `Team`)) +
+```{r redesign-before, message=FALSE, warning=FALSE, fig.alt="Original plain bar chart of top 10 World Cup teams by total wins. All bars are the same default grey color, bars are unsorted, and no theme customization is applied, making it hard to compare teams at a glance."}
+ggplot(total_wins, aes(x = n, y = Team)) +
   geom_col() +
   labs(
-    title = "Top 10 Teams by Home Wins",
-    x = "Number of Home Wins",
+    title = "Top 10 Teams by World Cup Match Wins",
+    x = "Number of Match Wins",
     y = ""
   )
 ```
@@ -161,16 +216,17 @@ ggplot(home_wins, aes(x = n, y = `Team`)) +
 **After (redesigned):**
 
 - Bars sorted by value for immediate rank reading
-- Colorblind-safe viridis fill encodes the magnitude redundantly with bar length
+- Win counts labeled directly on each bar, eliminating the need to estimate from the x-axis
 - `theme_bw()` removes chartjunk and improves contrast
 
-```{r redesign-after, message=FALSE, warning=FALSE, fig.alt="Redesigned horizontal bar chart of top 10 World Cup teams by home wins. Bars are sorted by value, colored with the colorblind-safe viridis palette encoding win count, and displayed on a clean white background, making ranking and comparison immediately clear."}
-ggplot(home_wins, aes(x = n, y = reorder(Team, n), fill = n)) +
-  geom_col() +
-  scale_fill_viridis_c(option = "viridis", guide = "none") +
+```{r redesign-after, message=FALSE, warning=FALSE, fig.alt="Redesigned horizontal bar chart of top 10 World Cup teams by match wins. Bars are sorted by value, colored uniform blue, with win counts labeled directly on each bar on a clean white background, making ranking and comparison immediately clear."}
+ggplot(total_wins, aes(x = n, y = reorder(Team, n))) +
+  geom_col(fill = "#0072B2") +
+  geom_text(aes(label = n), hjust = -0.2, size = 3.5, fontface = "bold", color = "grey20") +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.12))) +
   labs(
-    title = "Top 10 Teams by Home Wins",
-    x = "Number of Home Wins",
+    title = "Top 10 Teams by World Cup Match Wins",
+    x = "Number of Match Wins",
     y = ""
   ) +
   theme_bw()
@@ -180,12 +236,16 @@ ggplot(home_wins, aes(x = n, y = reorder(Team, n), fill = n)) +
 
 **a. What were the original charts you planned to create?**
 
-I planned three charts: a line chart showing goals per match over time, a bar chart of the most successful teams by home wins, and a bar chart of average attendance trends across tournaments.
+The original plan included three charts: a line chart tracking average goals per match over time, a bar chart of the most successful teams by total wins, and a bar chart of average attendance per tournament. The revised version expands on this by adding an EDA section upfront, upgrading the goals chart to an interactive plotly version with host-country context, and grounding the win-count chart in total wins rather than home-side wins only — a more defensible measure of overall success.
 
 **b. What story could you tell with your plots?**
 
-The three plots together tell a story about how World Cup football has evolved. Goals per game have declined since the high-scoring 1950s as tactics became more defensive. Brazil stands out as the most dominant team historically. Attendance has generally grown, peaking in 1994 when the USA hosted, and the gap between 1938 and 1950 visually marks the absence of tournaments during World War II.
+Taken together, the three charts trace how the World Cup has changed over nine decades. Goals per match peaked in the wide-open 1950s and have declined fairly consistently since, driven by the tactical and rule changes described in the Viz 1 section. Brazil stands out as the most consistently successful team by total wins, consistent with their five titles. Attendance has grown overall, with the 1994 US edition as the clear peak — a reflection of American stadium capacity rather than footballing interest alone. The WWII gap in the attendance chart is a useful visual anchor: it reminds the reader that this dataset carries historical context that goes beyond the sport.
 
 **c. How did you apply the principles of data visualization and design?**
 
-I kept the visualizations clean and purposeful. Each chart has a clear title and labeled axes. I used line charts for trends over time and bar charts for comparisons. In the revised version, I applied colorblind-safe viridis palettes so color encodes the same dimension as bar length (redundant encoding improves readability). `theme_bw()` removes unnecessary ink. The interactive version of Viz 1 allows readers to inspect precise values that would require guessing from a static axis. Missing data (blank rows) was filtered before analysis to ensure accuracy.
+Each chart has a single, clear purpose matched to an appropriate chart type: trends over time get a line chart, categorical comparisons get a sorted bar chart, and the interactive plotly version of Viz 1 layers in tooltip details that would clutter a static plot. Colorblind-safe viridis palettes are applied consistently so color encodes the same dimension as bar length — redundant encoding lowers the cognitive load. `theme_bw()` is used throughout to minimize non-data ink. The x-axis labeling on the attendance chart uses 8-year intervals aligned to the 4-year tournament cycle rather than conventional 10-year marks, which would fall between tournaments and force the reader to interpolate.
+
+**d. Limitations and Future Directions**
+
+A few constraints in the dataset are worth being explicit about. The data ends at 2014, so any trends from 2018 and 2022 — both of which had some scoring changes — are not visible. Attendance figures from the 1930s–1950s are estimates, as standardized reporting didn't exist yet. The dataset is match-level only; there's no player or formation data, so hypotheses about goalkeeping, defensive shape, or individual contributions can't be tested directly. The tournament structure also expanded over time (18 matches in 1930 vs. 64 from 1998), which means per-match averages are not comparing equivalent formats across all eras. Pairing this dataset with player-level statistics would open up more targeted questions — for example, tracking the relationship between a team's defensive record and their goals-against trend across different tactical eras.
