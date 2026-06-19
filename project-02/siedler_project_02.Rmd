@@ -270,62 +270,23 @@ ggplot(model_coefficients, aes(x = estimate, y = term)) +
 
 ## Before / After Redesign
 
-The original Visualization 4 (Median Time by Age and Gender) used `#4682B4` (steel blue) for Male and `#e74c3c` (red) for Female. Red-green and red-blue color combinations are not distinguishable for people with the most common forms of colorblindness (deuteranopia, protanopia).
+The redesign focused on Visualization 4 (Median Time by Age and Gender). The original submission used `scale_color_manual(values = c("Male" = "#4682B4", "Female" = "#e74c3c"))`.
 
-**What was wrong:**
+**What the original chart looked like:**
 
-- `#4682B4` and `#e74c3c` fail the red-green and blue-yellow colorblindness checks
-- No alt text or shape redundancy — color was the sole encoding for gender
-- Default `theme_minimal()` with no border
+- Male rendered in steel blue (`#4682B4`), Female in red (`#e74c3c`) — a red-blue combination that fails colorblindness checks for deuteranopia and protanopia (affecting ~8% of males)
+- Color was the *only* encoding for gender — no shape redundancy, no alt-text fallback
+- `theme_minimal()` with no panel border, which reduces contrast between the plot area and the page background
+- No annotation of the gender gap — the reader had to visually estimate the distance between the two curves
 
-**Before (reproduction of original):**
+**What changed in the revised chart:**
 
-```{r redesign-before, message=FALSE, warning=FALSE, fig.alt="Original version of the median finishing time by age and gender chart using steel blue for male and red for female, colors that are not distinguishable by colorblind viewers."}
-df_medians %>%
-  mutate(`M/F` = recode(`M/F`, M = "Male", F = "Female")) %>%
-  ggplot(aes(x = Age, y = Median_Time, color = `M/F`)) +
-  geom_point(size = 1.5) +
-  geom_smooth(se = FALSE, linewidth = 1, method = "loess") +
-  scale_x_continuous(breaks = seq(18, 70, 4)) +
-  scale_color_manual(values = c("Male" = "#4682B4", "Female" = "#e74c3c")) +
-  labs(
-    title = "Median Finishing Time by Age and Gender",
-    x = "Age", y = "Median Time (minutes)", color = "Gender"
-  ) +
-  theme_minimal()
-```
+- Palette switched to Okabe-Ito: `#0072B2` (blue) for Male, `#D55E00` (orange) for Female — safe for all major colorblindness types including deuteranopia, protanopia, and tritanopia
+- `theme_bw()` replaces `theme_minimal()` — panel border added, improves contrast
+- `geom_segment()` + `annotate("text")` added to label the exact gender gap at age 33 directly on the chart canvas, removing the need to estimate from the legend
+- Subtitle updated to reference the Okabe-Ito palette explicitly so the design decision is documented
+- `theme(axis.text.x = element_text(angle = 30, hjust = 1))` added for x-axis readability
 
-**After (redesigned):**
-
-- Okabe-Ito palette (`#0072B2` blue / `#D55E00` orange) — safe for all major colorblindness types
-- `theme_bw()` for better contrast
-- Annotation directly on the chart reduces reliance on legend alone
-
-```{r redesign-after, message=FALSE, warning=FALSE, fig.alt="Redesigned version of the median finishing time by age and gender chart. Uses Okabe-Ito colorblind-safe palette: blue for male, orange for female. A dashed line annotates the gender gap at age 33. Layout uses theme_bw for improved contrast."}
-df_medians %>%
-  mutate(`M/F` = recode(`M/F`, M = "Male", F = "Female")) %>%
-  ggplot(aes(x = Age, y = Median_Time, color = `M/F`)) +
-  geom_point(size = 1.5) +
-  geom_smooth(se = FALSE, linewidth = 1, method = "loess") +
-  geom_segment(
-    aes(x = age_gap, xend = age_gap, y = gap_at_30["M"], yend = gap_at_30["F"]),
-    color = "#555555", linewidth = 0.6, linetype = "dashed"
-  ) +
-  annotate("text",
-    x = 30.5, y = mean(gap_at_30[c("M", "F")]),
-    label = paste0("~", round(gap_at_30["F"] - gap_at_30["M"]), " min gap"),
-    hjust = 0, size = 3.5, fontface = "italic", color = "#555555"
-  ) +
-  scale_x_continuous(breaks = seq(18, 70, 4)) +
-  scale_color_manual(values = c("Male" = "#0072B2", "Female" = "#D55E00")) +
-  labs(
-    title = "Median Finishing Time by Age and Gender",
-    subtitle = "Okabe-Ito colorblind-safe palette | Points = observed medians",
-    x = "Age", y = "Median Time (minutes)", color = "Gender"
-  ) +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1))
-```
 
 ## Report
 

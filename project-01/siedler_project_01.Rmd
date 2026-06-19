@@ -193,44 +193,26 @@ ggplotly(p, tooltip = "text")
 
 ## Before / After Redesign
 
-The original "Top 10 Teams by World Cup Match Wins" chart (Visualization 2 in the original mini-project submission) used the default ggplot2 styling: a single flat grey fill, a white-on-grey grid background, and no ordering of the bars. This makes comparison harder and the chart looks unfinished.
+The redesign focused on Visualization 2 (teams by wins). The original submission used `geom_col()` with no styling arguments, producing the default ggplot2 output.
 
-**What was wrong:**
+**What the original chart looked like:**
 
-- All bars the same default grey — no visual hierarchy
-- Bars not sorted, so ranking is not immediately readable
-- No theme customization (`theme_gray()` default)
+- All bars rendered in the default grey fill (`#595959`) — no visual hierarchy and no color encoding
+- Bars drawn in alphabetical order (the default factor level order), not ranked by value, so the reader had to scan the full chart to find the top team
+- Default `theme_gray()` background with white gridlines on grey panel — high non-data ink
+- Metric was *home wins only* (`Home Team Goals > Away Team Goals`), which excludes away-match victories and undercounts a team's actual record
+- No match-count labels — values had to be estimated from the x-axis
+- Title said "Top 10 Teams by Home Wins", which implied ranking by home-game record rather than overall match performance
 
-**Before (reproduction of original chart):**
+**What changed in the revised chart:**
 
-```{r redesign-before, message=FALSE, warning=FALSE, fig.alt="Original plain bar chart of top 10 World Cup teams by total wins. All bars are the same default grey color, bars are unsorted, and no theme customization is applied, making it hard to compare teams at a glance."}
-ggplot(total_wins, aes(x = n, y = Team)) +
-  geom_col() +
-  labs(
-    title = "Top 10 Teams by World Cup Match Wins",
-    x = "Number of Match Wins",
-    y = ""
-  )
-```
-
-**After (redesigned):**
-
-- Bars sorted by value for immediate rank reading
-- Win counts labeled directly on each bar, eliminating the need to estimate from the x-axis
-- `theme_bw()` removes chartjunk and improves contrast
-
-```{r redesign-after, message=FALSE, warning=FALSE, fig.alt="Redesigned horizontal bar chart of top 10 World Cup teams by match wins. Bars are sorted by value, colored uniform blue, with win counts labeled directly on each bar on a clean white background, making ranking and comparison immediately clear."}
-ggplot(total_wins, aes(x = n, y = reorder(Team, n))) +
-  geom_col(fill = "#0072B2") +
-  geom_text(aes(label = n), hjust = -0.2, size = 3.5, fontface = "bold", color = "grey20") +
-  scale_x_continuous(expand = expansion(mult = c(0, 0.12))) +
-  labs(
-    title = "Top 10 Teams by World Cup Match Wins",
-    x = "Number of Match Wins",
-    y = ""
-  ) +
-  theme_bw()
-```
+- Metric switched to **total match wins** (home + away combined), using `bind_rows()` of two filtered counts — a more complete picture of competitive success
+- Bars sorted by value with `reorder(Team, n)` so ranking is immediately readable top-to-bottom
+- Fill set to a flat `#0072B2` blue — purposeful single color rather than redundant gradient
+- Win counts printed directly on each bar with `geom_text(aes(label = n), hjust = -0.2)` — no need to interpolate from the x-axis
+- `scale_x_continuous(expand = expansion(mult = c(0, 0.12)))` adds right-side padding so the bar labels don't clip
+- `theme_bw()` replaces `theme_gray()` — removes the grey panel background, reduces non-data ink
+- Title updated to "Top 10 Teams by World Cup Match Wins" to make clear this is individual game results, not World Cup tournament championships
 
 ## Discussion
 
