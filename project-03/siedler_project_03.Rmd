@@ -49,6 +49,29 @@ tpa_clean <- tpa_clean %>%
   )
 ```
 
+## Exploratory Data Analysis — Tampa Weather Data
+
+Before reproducing the assigned charts, a quick look at what the dataset contains.
+
+```{r eda-tpa, message=FALSE, warning=FALSE}
+# Dataset dimensions
+cat("Rows:", nrow(tpa_clean), "\n")
+cat("Date range:", format(min(tpa_clean$doy), "%Y-%m-%d"), "to",
+    format(max(tpa_clean$doy), "%Y-%m-%d"), "\n")
+
+# Missing or sentinel values
+tpa_clean %>%
+  summarise(
+    n_missing_temp  = sum(is.na(max_temp) | max_temp == -99.9),
+    n_missing_precip = sum(is.na(precipitation) | precipitation == -99.99),
+    temp_min  = min(max_temp[max_temp != -99.9], na.rm = TRUE),
+    temp_max  = max(max_temp[max_temp != -99.9], na.rm = TRUE),
+    temp_mean = round(mean(max_temp[max_temp != -99.9], na.rm = TRUE), 1)
+  )
+```
+
+The dataset covers all 365 days of 2022 from the Tampa International Airport station. A handful of observations have sentinel values (-99.9 for temperature, -99.99 for precipitation) representing missing measurements rather than actual readings; these are filtered out before each visualization. Daily maximum temperatures range from the low 50s °F in winter to the mid-90s °F in summer, with a mean around 83 °F. The most striking seasonal pattern is in precipitation, where the official rainy season (June–September) accounts for the majority of annual rainfall.
+
 Using the 2022 data: 
 
 (a) Create a plot like the one below:
@@ -383,3 +406,23 @@ new_concrete %>%
   ) +
   theme_bw()
 ```
+
+## Discussion
+
+### Part 1 — Tampa International Airport Weather (2022)
+
+The temperature plots collectively paint a clear seasonal picture. Winter months (December–February) show wide, flat distributions spread across the 50s–70s °F range, while summer months (June–September) show narrow distributions concentrated in the high 80s to low 90s °F. This reflects Tampa's subtropical climate: summer temperatures are constrained by humidity and sea breeze, creating a kind of temperature ceiling, while winter temperatures vary more depending on cold front activity. The ridgeline plot makes this seasonal compression/expansion of distributions easy to see at a glance.
+
+The precipitation chart highlights an important distinction between *frequency* and *total volume*. Some months have relatively few rainy days but heavy individual events (e.g. April), which can be misleading if visualized as a per-event boxplot. Summing monthly totals gives the correct climatological picture: June–September dominates, with July as the peak at approximately 14 inches. This is consistent with Florida's well-documented rainy season, driven by increased convective activity and sea-breeze fronts in summer.
+
+### Part 2 — UCI Concrete Compressive Strength
+
+The histograms confirm that input variable ranges are physically plausible: cement content (100–540 kg/m³) and water content (120–250 kg/m³) both fall within standard concrete mix design ranges. The right skew in cement content suggests that high-cement, high-strength mixes are less common in the dataset, which is typical of research samples covering a range of practical formulations.
+
+The boxplot of strength by curing age shows a clear relationship: samples cured for only 1 day sit almost entirely in the lowest strength range, while samples cured 56+ days show substantially higher strength. The spread within each age group is large, reflecting the fact that mix composition (cement, water, admixtures) is as important as time. The scatterplot brings these factors together: higher cement content and lower water content are both associated with higher strength, and older samples (larger circles) cluster in the upper portion of the chart. These patterns align with the water-to-cement ratio principle, one of the most well-established relationships in concrete technology.
+
+### Limitations
+
+**Tampa weather data:** This analysis is limited to a single station (Tampa International Airport) and a single year (2022). Station data may not be representative of broader regional patterns, and a single year may not reflect typical climate if 2022 had anomalous weather events. Comparisons across years or stations would strengthen any climatological conclusions.
+
+**Concrete dataset:** This is observational data from a research compendium, not a controlled experiment. The input variables are correlated with each other (e.g. higher cement content tends to come with lower water-to-cement ratios), which makes it difficult to isolate the independent effect of any single ingredient. A proper mixture experiment design would be needed to make causal claims about individual components.
