@@ -78,20 +78,6 @@ This project uses **`renv`** for reproducible R package management. All dependen
 
 Run `source("install.R")` in R/RStudio to install `renv` and restore all package dependencies pinned in `renv.lock`.
 
-### Key Packages
-
-| Package | Purpose |
-|---|---|
-| `tidyverse` | Data wrangling and ggplot2 |
-| `plotly` | Interactive visualizations |
-| `lubridate` | Date/time parsing |
-| `sf` | Spatial data for choropleth |
-| `countrycode` | ISO country code conversion |
-| `broom` | Tidy model output |
-| `ggridges` | Ridgeline density plots |
-
----
-
 ## Reproducing the Analysis
 
 Each project is self-contained in its subfolder. To reproduce any project:
@@ -108,5 +94,4 @@ Each project is self-contained in its subfolder. To reproduce any project:
 
 ## Moving Forward
 
-This course provided a solid foundation in exploratory data visualization and reproducible research with R. The most valuable takeaways were: (1) the importance of choosing chart types that match the nature of the data (distributions, comparisons, relationships), (2) accessibility considerations — colorblind-safe palettes and alt text are not optional extras but prerequisites for responsible communication, and (3) the power of interactivity to let readers engage with data at their own level of detail. Going forward, I plan to explore animated visualizations (e.g., `gganimate`) and experiment with dashboard tools like Shiny to build more dynamic, self-service data products.
-
+This course provided a solid foundation in exploratory data visualization and reproducible research with R. The most valuable takeaways were: (1) the importance of choosing chart types that match the nature of the data (distributions, comparisons, relationships), (2) accessibility considerations; colorblind-safe palettes and alt text are not optional extras but prerequisites for responsible communication, and (3) the power of interactivity to let readers engage with data at their own level of detail.
