@@ -104,8 +104,6 @@ Each project is self-contained in its subfolder. To reproduce any project:
    rmarkdown::render("project-03/siedler_project_03.Rmd")
    ```
 
-Note: Project 03 loads Tampa weather data from a GitHub URL — an active internet connection is required.
-
 ---
 
 ## Moving Forward
