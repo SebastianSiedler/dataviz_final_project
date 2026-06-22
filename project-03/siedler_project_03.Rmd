@@ -389,13 +389,30 @@ The initial version used: `tomato`, `darkolivegreen3`, `mediumseagreen`, `cornfl
 
 **Before:** The "before" chart is the boxplot already shown in Part 2 Q2 above with the rainbow palette. Since the only difference is the fill colors — data, geometry, axis labels, and layout are identical — reproducing the full chart here would only add redundancy. Scroll up to Part 2 Q2 to see it in context.
 
-**After (revised):**
+**After (redesigned):**
 
 Switching to `scale_fill_viridis_d()` solves both problems: viridis is perceptually uniform (the purple→green→yellow gradient maps naturally to low→high), and it is safe for all major colorblindness types. The ordered palette makes the strength-range ranking visually self-evident without requiring the reader to mentally match legend swatches.
 
 - Fill palette replaced with `scale_fill_viridis_d(option = "viridis")` — perceptually ordered, colorblind-safe
-- `theme_bw()` replaces `theme_gray()` for cleaner contrast
-- Subtitle updated to document the palette choice explicitly
+- `theme_bw()` replaces default styling for cleaner contrast
+- Subtitle documents the palette choice explicitly
+
+```{r redesign-after, message=FALSE, warning=FALSE, fig.align='center', out.width="80%", fig.alt="Redesigned grouped boxplot of concrete compressive strength by curing age. Strength range quintiles are now colored with the colorblind-safe viridis palette, progressing from purple (lowest range) to yellow (highest range). The perceptual ordering of the palette reinforces the low-to-high strength ordering."}
+new_concrete %>%
+  filter(!is.na(strength_range)) %>%
+  mutate(Age = factor(Age)) %>%
+  ggplot(aes(x = Age, y = Concrete_compressive_strength, fill = strength_range)) +
+  geom_boxplot(position = position_dodge(width = 0.8)) +
+  scale_fill_viridis_d(option = "viridis", name = "Strength Range") +
+  labs(
+    title = "Concrete Compressive Strength by Age (Redesigned)",
+    subtitle = "Viridis palette: perceptually ordered and colorblind-safe",
+    x = "Age (in days)",
+    y = "Compressive Strength (MPa)"
+  ) +
+  theme_bw()
+```
+
 
 
 

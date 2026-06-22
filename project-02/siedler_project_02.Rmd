@@ -270,22 +270,47 @@ ggplot(model_coefficients, aes(x = estimate, y = term)) +
 
 ## Before / After Redesign
 
-The redesign focused on Visualization 4 (Median Time by Age and Gender). The original submission used `scale_color_manual(values = c("Male" = "#4682B4", "Female" = "#e74c3c"))`.
+The redesign was a global palette overhaul across all visualizations — switching from an inconsistent set of named colors (`#4682B4` steel blue, `#2E8B57` sea green, `#c0392b`/`#e74c3c` red) and `theme_minimal()` to the Okabe-Ito colorblind-safe palette (`#0072B2`, `#D55E00`, `#009E73`) with `theme_bw()` throughout.
+
+Visualization 3 (finish time histogram) shows the most visible change since three separate color values were updated: the bar fill, the vertical reference lines, and both annotation labels.
 
 **What the original chart looked like:**
 
-- Male rendered in steel blue (`#4682B4`), Female in red (`#e74c3c`) — a red-blue combination that fails colorblindness checks for deuteranopia and protanopia (affecting ~8% of males)
-- Color was the *only* encoding for gender — no shape redundancy, no alt-text fallback
-- `theme_minimal()` with no panel border, which reduces contrast between the plot area and the page background
-- No annotation of the gender gap — the reader had to visually estimate the distance between the two curves
+- Bars filled with steel blue (`#4682B4`) — not part of a consistent or colorblind-safe system
+- Sub-3h and Sub-4h reference lines and labels in crimson (`#c0392b`) — red fails deuteranopia checks
+- Reference lines at very low opacity (`alpha = 0.2`) — hard to see against the blue bars
+- `theme_minimal()` with no panel border
 
-**What changed in the revised chart:**
+```{r redesign-before, message=FALSE, warning=FALSE, fig.alt="Original finish time histogram with steel blue bars and crimson vertical reference lines at 3h and 4h. The reference lines are nearly invisible at alpha=0.2."}
+finish_targets <- c(3, 4)
 
-- Palette switched to Okabe-Ito: `#0072B2` (blue) for Male, `#D55E00` (orange) for Female — safe for all major colorblindness types including deuteranopia, protanopia, and tritanopia
-- `theme_bw()` replaces `theme_minimal()` — panel border added, improves contrast
-- `geom_segment()` + `annotate("text")` added to label the exact gender gap at age 33 directly on the chart canvas, removing the need to estimate from the legend
-- Subtitle updated to reference the Okabe-Ito palette explicitly so the design decision is documented
-- `theme(axis.text.x = element_text(angle = 30, hjust = 1))` added for x-axis readability
+ggplot(df, aes(x = Official_Time_min / 60)) +
+  geom_histogram(binwidth = 1 / 60, fill = "#4682B4", color = "white", alpha = 0.85) +
+  geom_vline(xintercept = finish_targets, color = "#c0392b", alpha = 0.2, linewidth = 1) +
+  annotate("text",
+    x = 2.9, y = 350, label = "Sub-3h", angle = 90, vjust = 1.2,
+    size = 3.5, color = "#c0392b", fontface = "italic"
+  ) +
+  annotate("text",
+    x = 3.9, y = 350, label = "Sub-4h", angle = 90, vjust = 1.2,
+    size = 3.5, color = "#c0392b", fontface = "italic"
+  ) +
+  xlim(2, 6.5) +
+  labs(
+    title = "Distribution of Marathon Finish Times",
+    subtitle = "1-minute bins, x-axis truncated at 6.5h (99.9% of finishers)",
+    x = "Finish Time (hours)", y = "Number of Finishers"
+  ) +
+  theme_minimal()
+```
+
+**What changed in the revised chart (Visualization 3 above):**
+
+- Bar fill: `#4682B4` → `#0072B2` (Okabe-Ito blue) — part of a consistent palette across all five charts
+- Reference lines and annotations: `#c0392b` → `#D55E00` (Okabe-Ito orange) — colorblind-safe; orange is distinguishable from blue under all major colorblindness types
+- Reference line opacity: `alpha = 0.2` → `alpha = 0.4` — the original lines were barely visible against the bars
+- `theme_minimal()` → `theme_bw()` — panel border added, reduces ambiguity at the plot edges
+
 
 
 ## Report

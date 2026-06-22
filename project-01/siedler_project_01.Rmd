@@ -55,7 +55,6 @@ This chart tracks how the average number of goals per match shifted across all 2
 The reasons for this decline are multi-layered. Defensive tactics became increasingly sophisticated — organized systems like catenaccio in Italy and modern high-pressing structures made it harder to score. The 1992 back-pass rule change forced goalkeepers to play with their feet and shifted dynamics around defensive play. Improved physical conditioning and video-based scouting allow teams to neutralize opponents' attacking patterns in ways that weren't possible in the 1950s. Goalkeeping also professionalized substantially — modern keepers are trained specialists in a way early squads simply weren't. Some observers have speculated about goalkeeper anthropometrics or goal dimensions as additional factors — these are plausible hypotheses but not ones testable with match-level data alone, so they're flagged as speculation rather than conclusions here.
 
 ```{r viz1, message=FALSE, warning=FALSE, fig.alt="Line chart showing average goals per World Cup match by year from 1930 to 2014. A sharp peak occurs in the 1950s (over 5 goals/match) followed by a general decline to around 2.5 goals/match in recent decades."}
-
 goals_by_year <- df %>%
   group_by(Year) %>%
   summarize(avg_goals = mean(TotalGoals), n_matches = n(), .groups = "drop")
@@ -197,12 +196,26 @@ The redesign focused on Visualization 2 (teams by wins). The original submission
 
 **What the original chart looked like:**
 
-- All bars rendered in the default grey fill (`#595959`) — no visual hierarchy and no color encoding
-- Bars drawn in alphabetical order (the default factor level order), not ranked by value, so the reader had to scan the full chart to find the top team
-- Default `theme_gray()` background with white gridlines on grey panel — high non-data ink
-- Metric was *home wins only* (`Home Team Goals > Away Team Goals`), which excludes away-match victories and undercounts a team's actual record
-- No match-count labels — values had to be estimated from the x-axis
-- Title said "Top 10 Teams by Home Wins", which implied ranking by home-game record rather than overall match performance
+- All bars rendered in the default grey fill — no fill color was specified
+- Metric was *home wins only* — away-match victories were not counted, which undercounts a team's actual record
+- No match-count labels — values had to be read off the x-axis
+- No theme customization — default `theme_gray()` with grey panel background
+
+```{r redesign-before, message=FALSE, warning=FALSE, fig.alt="Original bar chart of top 10 World Cup teams by home wins. All bars are the same default grey color, with no theme customization or direct value labels."}
+home_wins_original <- df %>%
+  filter(`Home Team Goals` > `Away Team Goals`) %>%
+  mutate(Team = if_else(`Home Team Name` %in% c("Germany", "Germany FR"), "Germany", `Home Team Name`)) %>%
+  count(Team, sort = TRUE) %>%
+  head(10)
+
+ggplot(home_wins_original, aes(x = n, y = reorder(Team, n))) +
+  geom_col() +
+  labs(
+    title = "Top 10 Teams by Home Wins",
+    x = "Number of Home Wins",
+    y = ""
+  )
+```
 
 **What changed in the revised chart:**
 
